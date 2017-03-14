@@ -10,23 +10,23 @@
 #include "serialport.h"
 
 /**********************************
-*名称：OpenDevice
-*功能：打开串口并返回串口设备文件描述符
-*入口参数：port:串口设备号
-*出口参数：正确返回文件描述符，错误返回 false
+*Name：OpenDevice
+*Function：Open a serialport device
+*Param：port: The device name which you are going to open
+	ex:"/dev/ttyS1"
+*Output：Success: fd for this device; fail: false
 *********************************/
 
 int OpenDevice(const char* port)
 {
 	
 	int fd = open(port,O_RDWR | O_NOCTTY | O_NDELAY);
-	//int fd = open(port,O_RDWR | O_NOCTTY | O_NDELAY);
 	if(fd == false)
 	{
 		printf("cannot open port: %s", port);
 		return false;
 	}
-	//判断串口状态是否为阻塞态
+	//if the port is block
 	
 	if(fcntl(fd,F_SETFL,0) < 0)
 	{
@@ -44,15 +44,15 @@ int OpenDevice(const char* port)
 }
 
 /*******************************************************************
-* 名称：   SetDevice
-* 功能：   设置串口数据位，停止位和效验位
-* 入口参数：  fd         串口文件描述符
-*           speed      串口速度
-*           flow_ctrl  数据流控制
-*           databits   数据位   取值为 7 或者8
-*           stopbits   停止位   取值为 1 或者2
-*           parity     效验类型 取值为N,E,O,,S
-*出口参数：              正确返回为true ，错误返回为 false
+* Name： 	SetDevice
+*Fuction ：  	Set up Device
+*@Param：  fd 	
+*           speed 		
+*           flow_ctrl   
+*           databits  7 or 8 
+*           stopbits 1 or 2 
+*           parity    N,E,O,,S                    
+* Output：   Success:    true Fail:false
 *******************************************************************/
 
 int SetDevice(int fd, int speed, int flow_ctrl, int databits, int stopbits, int parity)
@@ -61,11 +61,9 @@ int SetDevice(int fd, int speed, int flow_ctrl, int databits, int stopbits, int 
     int   status;
 
     struct termios options;
-    /*tcgetattr(fd,&options)得到与fd指向对象的相关参数，
-    并将它们保存于options,
-    该函数,还可以测试配置是否正确，
-    该串口是否可用等。
-    若调用成功，函数返回值为0，若调用失败，函数返回值为1.
+    /*tcgetattr(fd,&options)
+	get info
+  	and save it in options,
     */
     if (tcgetattr(fd, &options) != 0)
     {
@@ -73,7 +71,8 @@ int SetDevice(int fd, int speed, int flow_ctrl, int databits, int stopbits, int 
     	return false;
     }
 
-     //设置串口输入波特率和输出波特率
+     //set Bound Rate for both input and output
+
     for ( i= 0;  i < sizeof(speed_arr) / sizeof(int);  i++)
     {
     	if  (speed == name_arr[i])
@@ -82,31 +81,28 @@ int SetDevice(int fd, int speed, int flow_ctrl, int databits, int stopbits, int 
             cfsetospeed(&options, speed_arr[i]);  
         }
     }
-    //修改控制模式，保证程序不会占用串口
+    //change control mode
     options.c_cflag |= CLOCAL;
-    //修改控制模式，使得能够从串口中读取输入数据
     options.c_cflag |= CREAD;
 
-
-
-    //设置数据流控制
+    //set folw control
     switch(flow_ctrl)
     {
       
-       case 0 ://不使用流控制
+       case 0 ://none
               options.c_cflag &= ~CRTSCTS;
               break;   
       
-       case 1 ://使用硬件流控制
+       case 1 ://hardware flow control
               options.c_cflag |= CRTSCTS;
               break;
-       case 2 ://使用软件流控制
+       case 2 :// software flow control
               options.c_cflag |= IXON | IXOFF | IXANY;
               break;
     }
 
-    //设置数据位
-    options.c_cflag &= ~CSIZE; //屏蔽其他标志位
+    //set data bits
+    options.c_cflag &= ~CSIZE; //ignore the orther tag
     switch (databits)
     {  
        case 5 :
@@ -125,27 +121,27 @@ int SetDevice(int fd, int speed, int flow_ctrl, int databits, int stopbits, int 
                 printf("Unsupported data size\n");
                 return false; 
     }
-    //设置校验位
+    //set parity bit
     switch (parity)
     {  
        case 'n':
-       case 'N': //无奇偶校验位。
+       case 'N': //none
                 options.c_cflag &= ~PARENB; 
                 options.c_iflag &= ~INPCK;    
                 break; 
        case 'o':  
-       case 'O'://设置为奇校验    
+       case 'O'://odd
                 options.c_cflag |= (PARODD | PARENB); 
                 options.c_iflag |= INPCK;             
                 break; 
        case 'e': 
-       case 'E'://设置为偶校验  
+       case 'E'://even
                 options.c_cflag |= PARENB;       
                 options.c_cflag &= ~PARODD;       
                 options.c_iflag |= INPCK;       
                 break;
        case 's':
-       case 'S': //设置为空格 
+       case 'S': //space
                 options.c_cflag &= ~PARENB;
                 options.c_cflag &= ~CSTOPB;
                 break; 
@@ -153,7 +149,7 @@ int SetDevice(int fd, int speed, int flow_ctrl, int databits, int stopbits, int 
                 printf("Unsupported parity\n");   
                 return false; 
     } 
-    // 设置停止位 
+    //set stop bits 
     switch (stopbits)
     {  
        case 1:   
@@ -167,17 +163,17 @@ int SetDevice(int fd, int speed, int flow_ctrl, int databits, int stopbits, int 
                 return false;
     }
    
-    //修改输出模式，原始数据输出
+    //verify ouput mode ,raw data
     options.c_oflag &= ~OPOST;
    
-    //设置等待时间和最小接收字符
-    options.c_cc[VTIME] = 1; /* 读取一个字符等待1*(1/10)s */  
-    options.c_cc[VMIN] = 20; /* 读取字符的最少个数为1 */
+    //set waiting time
+    options.c_cc[VTIME] = 1; /* minimum wait time 1*(1/10)s */  
+    options.c_cc[VMIN] = 20; /*minimum char number 1 */
    
-    //如果发生数据溢出，接收数据，但是不再读取
+    //if flow occurs
     tcflush(fd,TCIFLUSH);
    
-    //激活配置 (将修改后的termios数据设置到串口中）
+    //activation
     if (tcsetattr(fd,TCSANOW,&options) != 0)  
     {
        perror("com set error!\n");  
@@ -188,15 +184,15 @@ int SetDevice(int fd, int speed, int flow_ctrl, int databits, int stopbits, int 
 }
 
 /*******************************************************************
-* 名称： 		InitDevice()
-* 功能：  	串口初始化
-* 入口参数：  fd 			文件描述符   
-*           speed 		串口速度
-*           flow_ctrl   数据流控制
-*           databits    数据位   取值为 7 或者8
-*           stopbits   停止位   取值为 1 或者2
-*           parity     效验类型 取值为N,E,O,,S                    
-* 出口参数：        正确返回为true，错误返回为false
+* Name： 		InitDevice()
+*Fuction ：  Init serialport	
+*@Param：  fd 	
+*           speed 		
+*           flow_ctrl   
+*           databits  7 or 8 
+*           stopbits 1 or 2 
+*           parity    N,E,O,,S                    
+* Output：   Success:    true Fail:false
 *******************************************************************/
 int InitDevice(int fd, int speed, int flow_ctrl, int databits, int stopbits, int parity)
 {
@@ -208,12 +204,12 @@ int InitDevice(int fd, int speed, int flow_ctrl, int databits, int stopbits, int
 }
 
 /*******************************************************************
-* 名称：                 Receive
-* 功能：                	接收串口数据
-* 入口参数：        fd 	文件描述符    
-*                 rcv_buf   接收串口中数据存入rcv_buf缓冲区中
-*                 data_len    :一帧数据的长度
-* 出口参数：        正确返回为1，错误返回为0
+* Name：                 Receive
+*Fuction：              Receive data from serial port  	
+*@Param：        fd 	
+*                 rcv_buf   receiv buf
+*                 data_len   length of a frame 
+*Output ：      success:1,fail:0
 *******************************************************************/
 int Receive(int fd, char *rcv_buf,int data_len)
 {
@@ -230,7 +226,7 @@ int Receive(int fd, char *rcv_buf,int data_len)
     len = read(fd,rcv_buf, data_len);
     return len;
    
-    //使用select实现串口的多路通信
+    //use select
     /*
     fs_sel = select(fd+1,&fs_read,NULL,NULL,&time);
     if(fs_sel)
@@ -245,12 +241,12 @@ int Receive(int fd, char *rcv_buf,int data_len)
 }
 
 /*******************************************************************
-* 名称：               Send
-* 功能：                发送数据
-* 入口参数：        fd                  :文件描述符    
-*                              send_buf    :存放串口发送数据
-*                              data_len    :一帧数据的个数
-* 出口参数：        正确返回为1，错误返回为0
+* Name：               Send
+*Fuction：              send data
+*@Param：        fd      
+*		 send_buf   
+*              	 data_len    
+*Output ：       Success  1 Fail 0
 *******************************************************************/
 int Send(int fd, char *send_buf,int data_len)
 {
@@ -269,10 +265,10 @@ int Send(int fd, char *send_buf,int data_len)
 }
 
 /******************************************************
-* 名称：                Close_Dev
-* 功能：                关闭串口
-* 入口参数：        fd    :文件描述符   
-* 出口参数：        void
+* Name：                Close_Dev
+*Fuction：              close serial port
+* @Param：        fd   
+*Output：        void
 *******************************************************************/
  
 void Close_Dev(int fd)

@@ -1,3 +1,8 @@
+/*****************************************
+author:SHihuiOne
+Email:shihui.one@gmail.com
+Date:2017-02-14
+****************************************/
 #ifndef SERIALPORT_H
 #define SERIALPORT_H
 
@@ -18,4 +23,4 @@ int Receive(int fd, char *rcv_buf,int data_len);
 int Send(int fd, char *send_buf,int data_len);
 
 
-#endif // SERIALPORT_H_
+#endif  
